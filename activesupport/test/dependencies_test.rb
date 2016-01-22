@@ -1055,4 +1055,25 @@ class DependenciesTest < ActiveSupport::TestCase
   ensure
     ActiveSupport::Dependencies.hook!
   end
+
+  def test_onload
+    with_loading 'dependencies' do
+      obj = MiniTest::Mock.new
+      obj.expect(:call, nil)
+      obj.expect(:another_call, nil)
+
+      ActiveSupport::Dependencies.onload('ServiceOne') do
+        obj.call
+      end
+
+      ActiveSupport::Dependencies.onload('ServiceOne') do
+        obj.another_call
+      end
+
+      assert ServiceOne
+      ActiveSupport::Dependencies.clear_load_hooks
+
+      obj.verify
+    end
+  end
 end

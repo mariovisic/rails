@@ -97,6 +97,18 @@ module ActiveSupport #:nodoc:
     mattr_accessor :log_activity
     self.log_activity = false
 
+
+    def self.onload(const_name, &blk)
+      load_hooks[const_name.to_sym].push(blk)
+    end
+
+    def self.clear_load_hooks
+      self.load_hooks = Hash.new([])
+    end
+
+    mattr_accessor :load_hooks
+    clear_load_hooks
+
     # The WatchStack keeps a stack of the modules being watched as files are
     # loaded. If a file in the process of being loaded (parent.rb) triggers the
     # load of another file (child.rb) the stack will ensure that child.rb
@@ -685,7 +697,11 @@ module ActiveSupport #:nodoc:
         new_constants = constant_watch_stack.new_constants
 
         log "New constants: #{new_constants * ', '}"
-        return new_constants unless aborting
+        unless aborting
+          new_constants.each { |new_constant| Dependencies.load_hooks[new_constant].each(&:call) }
+
+          return new_constants
+        end
 
         log "Error during loading, removing partially loaded constants "
         new_constants.each { |c| remove_constant(c) }.clear
